@@ -10,7 +10,7 @@ El kit solo pone la mecánica.
 Desde GitHub, con la versión fija (el repo incluye `dist/`, no se compila al instalar):
 
 ```sh
-npm install --save-exact "git+https://github.com/jesusvaros/app-kit.git#v0.1.0"
+npm install --save-exact "git+https://github.com/jesusvaros/app-kit.git#v0.1.1"
 ```
 
 ## Qué hay

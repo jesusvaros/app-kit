@@ -58,6 +58,23 @@ describe('native availability', () => {
   });
 });
 
+describe('native Google request', () => {
+  it('asks Google for no extra scopes (Android rejects them without MainActivity changes)', async () => {
+    setPlatform('android');
+    const login = vi.fn().mockResolvedValue({ provider: 'google', result: { idToken: 'jwt' } });
+    vi.doMock('@capgo/capacitor-social-login', () => ({
+      SocialLogin: { initialize: vi.fn().mockResolvedValue(undefined), logout: vi.fn().mockResolvedValue(undefined), login },
+    }));
+    vi.doMock('@capacitor/app', () => ({ App: { addListener: vi.fn().mockResolvedValue({ remove: vi.fn() }) } }));
+    const { createNativeSignIn: fresh } = await import('./native.js?scopes');
+    const identity = await fresh({ google: { webClientId: 'web' } }).signIn('google');
+    expect(identity.idToken).toBe('jwt');
+    const options = login.mock.calls[0]![0].options;
+    expect(options).not.toHaveProperty('scopes');
+    expect(options.nonce).toMatch(/^[0-9a-f]{64}$/);
+  });
+});
+
 describe('supabase sign-in', () => {
   it('hands the token and the raw nonce to Supabase, and keeps the Apple name', async () => {
     setPlatform('ios');
