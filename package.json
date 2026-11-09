@@ -1,6 +1,6 @@
 {
   "name": "@jesusvaros/app-kit",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "Login nativo de Google y Apple para apps Capacitor + Supabase.",
   "type": "module",

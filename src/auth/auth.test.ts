@@ -66,7 +66,8 @@ describe('native Google request', () => {
       SocialLogin: { initialize: vi.fn().mockResolvedValue(undefined), logout: vi.fn().mockResolvedValue(undefined), login },
     }));
     vi.doMock('@capacitor/app', () => ({ App: { addListener: vi.fn().mockResolvedValue({ remove: vi.fn() }) } }));
-    const { createNativeSignIn: fresh } = await import('./native.js?scopes');
+    vi.resetModules();
+    const { createNativeSignIn: fresh } = await import('./native.js');
     const identity = await fresh({ google: { webClientId: 'web' } }).signIn('google');
     expect(identity.idToken).toBe('jwt');
     const options = login.mock.calls[0]![0].options;

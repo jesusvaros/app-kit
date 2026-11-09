@@ -94,7 +94,10 @@ export const createNativeSignIn = (config) => {
                 await withTimeout(SocialLogin.logout({ provider: 'google' }), logoutTimeoutMs, 'FAILED').catch(() => undefined);
             }
             const login = provider === 'google'
-                ? SocialLogin.login({ provider: 'google', options: { scopes: ['email', 'profile'], nonce: nonce.hashed } })
+                ? // No scopes for Google: the ID token already carries email and name, and
+                    // on Android custom scopes need changes to MainActivity (the plugin
+                    // rejects the call otherwise).
+                    SocialLogin.login({ provider: 'google', options: { nonce: nonce.hashed } })
                 : SocialLogin.login({ provider: 'apple', options: { scopes: ['email', 'name'], nonce: nonce.hashed } });
             const response = await Promise.race([login, sheet.promise]);
             const result = response.result;
