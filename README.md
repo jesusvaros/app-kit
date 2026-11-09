@@ -1,11 +1,17 @@
 # app-kit
 
-Login (y pronto onboarding) compartidos entre las apps Capacitor + Supabase:
-**live_space** y **puntada**. La referencia de diseño es Holy Cook, que se lee
-pero no se toca.
+Login (y pronto onboarding) compartidos entre apps Capacitor + Supabase.
 
 Cada app sigue siendo única: colores, textos, fotos y pantallas van en la app.
 El kit solo pone la mecánica.
+
+## Instalar
+
+Desde GitHub, con la versión fija (el repo incluye `dist/`, no se compila al instalar):
+
+```sh
+npm install --save-exact "git+https://github.com/jesusvaros/app-kit.git#v0.1.0"
+```
 
 ## Qué hay
 
@@ -59,14 +65,14 @@ Google en iOS necesita el «iOS URL scheme» del cliente iOS en `Info.plist`.
 
 ## Publicar una versión
 
-El repo es privado y las apps no tienen acceso desde su CI. Por eso cada
-versión se empaqueta y se guarda dentro de cada app:
-
 ```sh
-# sube la versión en package.json, luego:
-npm run release -- ~/live_space ~/puntada
-# en cada app:
-npm install --save-exact ./vendor/jesusvaros-app-kit-X.Y.Z.tgz
+# sube la versión en package.json
+npm run release          # typecheck + tests + build a dist/
+git add -A && git commit -m "vX.Y.Z" && git tag vX.Y.Z && git push --follow-tags
 ```
 
-Cada app decide cuándo actualizar. Haz tag `vX.Y.Z` en este repo.
+Cada app decide cuándo actualizar cambiando el tag en su `package.json`.
+
+## Licencia
+
+MIT

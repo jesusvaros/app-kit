@@ -2,12 +2,13 @@
   "name": "@jesusvaros/app-kit",
   "version": "0.1.0",
   "private": true,
-  "description": "Login y onboarding compartidos para las apps Capacitor + Supabase (live_space, puntada).",
+  "description": "Login nativo de Google y Apple para apps Capacitor + Supabase.",
   "type": "module",
   "sideEffects": false,
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "exports": {
     "./auth": {
@@ -23,7 +24,7 @@
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "release": "npm run typecheck && npm test && npm run build && node scripts/release.mjs"
+    "release": "npm run typecheck && npm test && npm run build"
   },
   "peerDependencies": {
     "@capacitor/app": ">=7",
@@ -43,5 +44,10 @@
     "@supabase/supabase-js": "2.76.1",
     "typescript": "5.8.3",
     "vitest": "3.2.4"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jesusvaros/app-kit.git"
   }
 }
