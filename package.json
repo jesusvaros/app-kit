@@ -1,0 +1,47 @@
+{
+  "name": "@jesusvaros/app-kit",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Login y onboarding compartidos para las apps Capacitor + Supabase (live_space, puntada).",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "exports": {
+    "./auth": {
+      "types": "./dist/auth/index.d.ts",
+      "import": "./dist/auth/index.js"
+    },
+    "./auth/supabase": {
+      "types": "./dist/auth/supabase.d.ts",
+      "import": "./dist/auth/supabase.js"
+    }
+  },
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "release": "npm run typecheck && npm test && npm run build && node scripts/release.mjs"
+  },
+  "peerDependencies": {
+    "@capacitor/app": ">=7",
+    "@capacitor/core": ">=7",
+    "@capgo/capacitor-social-login": ">=8.7.5",
+    "@supabase/supabase-js": ">=2.40"
+  },
+  "peerDependenciesMeta": {
+    "@supabase/supabase-js": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@capacitor/app": "8.0.0",
+    "@capacitor/core": "8.0.1",
+    "@capgo/capacitor-social-login": "8.7.5",
+    "@supabase/supabase-js": "2.76.1",
+    "typescript": "5.8.3",
+    "vitest": "3.2.4"
+  }
+}
