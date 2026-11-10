@@ -1,8 +1,8 @@
 {
   "name": "@jesusvaros/app-kit",
-  "version": "0.1.2",
+  "version": "0.3.0",
   "private": true,
-  "description": "Login nativo de Google y Apple para apps Capacitor + Supabase.",
+  "description": "Login nativo de Google y Apple y notificaciones push para apps Capacitor + Supabase.",
   "type": "module",
   "sideEffects": false,
   "files": [
@@ -18,6 +18,14 @@
     "./auth/supabase": {
       "types": "./dist/auth/supabase.d.ts",
       "import": "./dist/auth/supabase.js"
+    },
+    "./push": {
+      "types": "./dist/push/index.d.ts",
+      "import": "./dist/push/index.js"
+    },
+    "./push/supabase": {
+      "types": "./dist/push/supabase.d.ts",
+      "import": "./dist/push/supabase.js"
     }
   },
   "scripts": {
@@ -30,16 +38,27 @@
     "@capacitor/app": ">=7",
     "@capacitor/core": ">=7",
     "@capgo/capacitor-social-login": ">=8.7.5",
-    "@supabase/supabase-js": ">=2.40"
+    "@supabase/supabase-js": ">=2.40",
+    "@capacitor/push-notifications": ">=7"
   },
   "peerDependenciesMeta": {
     "@supabase/supabase-js": {
+      "optional": true
+    },
+    "@capacitor/push-notifications": {
+      "optional": true
+    },
+    "@capgo/capacitor-social-login": {
+      "optional": true
+    },
+    "@capacitor/app": {
       "optional": true
     }
   },
   "devDependencies": {
     "@capacitor/app": "8.0.0",
     "@capacitor/core": "8.0.1",
+    "@capacitor/push-notifications": "8.1.3",
     "@capgo/capacitor-social-login": "8.7.5",
     "@supabase/supabase-js": "2.76.1",
     "typescript": "5.8.3",

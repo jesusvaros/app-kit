@@ -1,6 +1,6 @@
 # app-kit
 
-Login (y pronto onboarding) compartidos entre apps Capacitor + Supabase.
+Login y notificaciones push compartidos entre apps Capacitor + Supabase.
 
 Cada app sigue siendo única: colores, textos, fotos y pantallas van en la app.
 El kit solo pone la mecánica.
@@ -10,7 +10,7 @@ El kit solo pone la mecánica.
 Desde GitHub, con la versión fija (el repo incluye `dist/`, no se compila al instalar):
 
 ```sh
-npm install --save-exact "git+https://github.com/jesusvaros/app-kit.git#v0.1.2"
+npm install --save-exact "git+https://github.com/jesusvaros/app-kit.git#v0.3.0"
 ```
 
 ## Qué hay
@@ -30,6 +30,43 @@ npm install --save-exact "git+https://github.com/jesusvaros/app-kit.git#v0.1.2"
     `signInWithIdToken`; si no hay hoja o falla (salvo cancelar), navegador.
     Devuelve `'signed-in' | 'redirecting' | 'cancelled'`.
   - `handleCallbackUrl(url)`: el enlace de vuelta del navegador en la app (PKCE o implícito, recuperación y errores).
+
+### `@jesusvaros/app-kit/push`
+Capa fina sobre `@capacitor/push-notifications` (dependencia opcional, se
+importa solo en el móvil). En la web y sin el plugin todo es un no-op seguro.
+
+- `createPush({ registerOn, channels, registerTimeoutMs, tokenStorageKey, storage })`
+  - `getPermissionState()`: `'granted' | 'denied' | 'prompt' | 'unavailable'`.
+  - `requestPermissionWhenUseful()`: abre el diálogo del sistema solo si la
+    respuesta sigue abierta (`prompt`). En Android 13+ es el permiso
+    `POST_NOTIFICATIONS`. **Nunca al abrir la app**: la app decide el momento.
+  - `register()`: crea los canales de Android y resuelve con el token (o
+    `PushError` `UNAVAILABLE | NOT_GRANTED | TIMEOUT | FAILED`).
+    `registerOn: ['android']` deja iOS apagado mientras no haya APNs.
+  - `onToken(({ token, previous }) => …)`: token nuevo, también cuando FCM lo
+    renueva (con el anterior, para mover la fila).
+  - `onRegistrationError`, `onReceived` (con la app abierta el sistema no
+    enseña nada: pon tu aviso), `onTapped((message, actionId) => …)`. Cada uno
+    devuelve la función para quitarlo. `message.data` siempre es un objeto.
+  - `listen()`: engancha los listeners ya (pronto, para no perder el toque que
+    arrancó la app), `currentToken()`, `unregister()`.
+- `createAskPolicy({ cooldownDays = 14 })`: cuándo ofrecerlas.
+  `decide(permission)` → `'register'` (ya concedido: registrar en silencio),
+  `'explain'` (enseña tu hoja explicativa y solo con «Sí» pide el permiso) o
+  `'skip'` (denegado, o dijo «Ahora no» hace menos de `cooldownDays`).
+  `declined()` / `reset()`.
+- `routeFromData(data, ['/event/', '/tabs/'])`: la ruta interna de
+  `data.route` si empieza por un prefijo permitido; si no, `null`.
+
+### `@jesusvaros/app-kit/push/supabase`
+- `createSupabasePushTokens({ supabase, rpc: { upsert, remove } })` o
+  `({ supabase, table, userColumn = 'profile_id' })`:
+  `upsertDeviceToken({ platform, token, appVersion, locale, timezone })` y
+  `removeDeviceToken(token)` (antes de cerrar sesión: RLS necesita la sesión).
+  Con `rpc` las funciones reciben `p_token, p_platform, p_app_version,
+  p_locale, p_timezone` y `p_token`; mejor que la tabla porque reasignan un
+  token que cambia de cuenta (móvil compartido).
+- `deviceContext()`: `{ locale, timezone }` del dispositivo.
 
 ## Ejemplo
 
@@ -51,9 +88,41 @@ export const auth = createSupabaseAuth({
 });
 ```
 
+### Push
+
+```ts
+import { createAskPolicy, createPush, routeFromData } from '@jesusvaros/app-kit/push';
+import { createSupabasePushTokens, deviceContext } from '@jesusvaros/app-kit/push/supabase';
+
+export const push = createPush({
+  registerOn: ['android'],
+  channels: [{ id: 'conciertos', name: 'Conciertos', importance: 4 }],
+});
+const tokens = createSupabasePushTokens({ supabase, rpc: { upsert: 'register_push_device', remove: 'unregister_push_device' } });
+const policy = createAskPolicy({ cooldownDays: 14 });
+
+// Tras una acción que lo justifique (no al abrir la app):
+switch (policy.decide(await push.getPermissionState())) {
+  case 'register': await save(await push.register()); break;
+  case 'explain': showExplainer(); break; // «Sí» → requestPermissionWhenUseful() → register()
+}
+const save = (token: string) => tokens.upsertDeviceToken({ platform: push.platform(), token, ...deviceContext() });
+
+push.onToken(({ token }) => void save(token));
+push.onTapped(message => {
+  const route = routeFromData(message.data, ['/event/', '/tabs/']);
+  if (route) navigate(route);
+});
+```
+
+En Android hace falta Firebase (`google-services.json` y el plugin de Gradle).
+El icono pequeño y el color por defecto de FCM van en el `AndroidManifest.xml`
+(`com.google.firebase.messaging.default_notification_icon` / `_color` /
+`_channel_id`).
+
 ## En cada app
 
-Dependencias: `@capacitor/core`, `@capacitor/app`, `@capgo/capacitor-social-login`
+Dependencias del login: `@capacitor/core`, `@capacitor/app`, `@capgo/capacitor-social-login`
 (≥ 8.7.5) y `@supabase/supabase-js`. En `capacitor.config.ts`:
 
 ```ts
@@ -68,7 +137,8 @@ Google en iOS necesita el «iOS URL scheme» del cliente iOS en `Info.plist`.
 ```sh
 # sube la versión en package.json
 npm run release          # typecheck + tests + build a dist/
-git add -A && git commit -m "vX.Y.Z" && git tag vX.Y.Z && git push --follow-tags
+git add -A && git commit -m "vX.Y.Z" && git tag vX.Y.Z
+git push && git push origin vX.Y.Z   # el tag ligero no viaja con --follow-tags
 ```
 
 Cada app decide cuándo actualizar cambiando el tag en su `package.json`.
