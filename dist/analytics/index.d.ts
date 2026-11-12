@@ -24,10 +24,7 @@ export type AnalyticsStorage = {
 };
 /** What a supabase-js client has that this needs. */
 export type AnalyticsRpcClient = {
-    rpc: (fn: string, args: {
-        p_device: string;
-        p_events: AnalyticsEvent[];
-    }) => PromiseLike<{
+    rpc: (fn: any, args?: any) => PromiseLike<{
         error: unknown;
     }>;
 };
