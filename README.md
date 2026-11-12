@@ -1,6 +1,6 @@
 # app-kit
 
-Login y notificaciones push compartidos entre apps Capacitor + Supabase.
+Login, notificaciones push y analítica propia compartidos entre apps Capacitor + Supabase.
 
 Cada app sigue siendo única: colores, textos, fotos y pantallas van en la app.
 El kit solo pone la mecánica.
@@ -10,7 +10,7 @@ El kit solo pone la mecánica.
 Desde GitHub, con la versión fija (el repo incluye `dist/`, no se compila al instalar):
 
 ```sh
-npm install --save-exact "git+https://github.com/jesusvaros/app-kit.git#v0.3.0"
+npm install --save-exact "git+https://github.com/jesusvaros/app-kit.git#v0.4.0"
 ```
 
 ## Qué hay
@@ -68,6 +68,40 @@ importa solo en el móvil). En la web y sin el plugin todo es un no-op seguro.
   token que cambia de cuenta (móvil compartido).
 - `deviceContext()`: `{ locale, timezone }` del dispositivo.
 
+### `@jesusvaros/app-kit/analytics`
+Analítica de uso propia (sin terceros), sin React ni imports de Capacitor: la
+app le pasa el almacenamiento, la plataforma, la versión, el idioma, Supabase y
+cuándo pasa a segundo plano. Mismo contrato que Lanuki (ADR-157).
+
+- `createAnalytics({ getSupabase, rpc = 'track_events', storage, keys, platform, getVersion, getLanguage, isEnabled, flushAfterMs = 8000, maxQueue = 2000, batch = 100, sessionGapMs = 30 min, maxPropsBytes = 1800, onBackground, onForeground })`
+  - `track(name, props?)`: vuelve al momento y nunca lanza. El evento va a una
+    cola guardada en `storage` y se envía por lotes con
+    `rpc(p_device uuid, p_events jsonb)`, también antes de iniciar sesión (la
+    cuenta la pone el servidor con el token). Nombres que no cumplen
+    `^[a-z][a-z0-9_]{0,59}$` se descartan; las props se quedan en valores
+    planos (texto ≤ 300, sin objetos) y por debajo de `maxPropsBytes`.
+  - Se envía 8 s después del último evento, en cuanto hay un lote lleno, al
+    pasar a segundo plano y con `flush()`. Lo que falla se queda en la cola
+    (las 2000 más nuevas sin conexión).
+  - Sesión: un uuid por uso; tras 30 min en segundo plano, uno nuevo.
+  - `setEnabled(false)` (el interruptor de Ajustes): vacía la cola y no guarda
+    ni envía nada. `isEnabled` se lee al crear: hasta que contesta no se envía
+    nada y `false` tira lo encolado.
+  - `captureErrors({ where?, target?, maxPerSession = 20 })`: `error` y
+    `unhandledrejection` de `window` → `error { message ≤ 200, where }` (por
+    defecto `where` es la pantalla actual). Devuelve la función que lo para.
+  - `screenName(path)`: la ruta sin uuids, @usuarios ni números, para agrupar.
+  - `sessionId()`, `deviceId()`, `isEnabled()`, `dispose()`.
+- `webStorage(localStorage?)`: `storage` sobre Web Storage, en JSON.
+- `isValidEventName`, `trimProps`, `EVENT_NAME`; tipos `AnalyticsEvent`,
+  `AnalyticsProps`, `AnalyticsConfig`, `Analytics`.
+
+Cada evento llega a `p_events` como
+`{ name, at, session, props, v, platform, lang }`. La tabla y la función van en
+cada app (ver `supabase/migrations/20261114180000_events.sql` de Lanuki):
+`track_events` es `security definer`, se puede llamar como `anon` y
+`authenticated`, acepta ≤ 100 por llamada y recorta las fechas a 30 días.
+
 ## Ejemplo
 
 ```ts
@@ -120,7 +154,51 @@ El icono pequeño y el color por defecto de FCM van en el `AndroidManifest.xml`
 (`com.google.firebase.messaging.default_notification_icon` / `_color` /
 `_channel_id`).
 
+### Analítica
+
+```ts
+// src/lib/analytics.ts
+import { App } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
+import { Preferences } from '@capacitor/preferences';
+import { createAnalytics } from '@jesusvaros/app-kit/analytics';
+import i18n from 'i18next';
+import { getSettings, settingsLoaded } from './settings';
+
+export const analytics = createAnalytics({
+  getSupabase: async () => (await import('./supabase')).supabase,
+  storage: {
+    load: async key => {
+      const { value } = await Preferences.get({ key });
+      return value ? JSON.parse(value) : null;
+    },
+    save: (key, value) => Preferences.set({ key, value: JSON.stringify(value) }),
+  },
+  platform: Capacitor.getPlatform(),
+  getVersion: async () => {
+    if (!Capacitor.isNativePlatform()) return import.meta.env.VITE_APP_VERSION ?? null;
+    const info = await App.getInfo();
+    return `${info.version} (${info.build})`;
+  },
+  getLanguage: () => i18n.language,
+  isEnabled: () => settingsLoaded.then(() => getSettings().analytics !== false),
+  // @capacitor/app también los emite en la web (página oculta/visible).
+  onBackground: cb => App.addListener('pause', cb),
+  onForeground: cb => App.addListener('resume', cb),
+});
+
+analytics.captureErrors();
+analytics.track('app_open');
+void analytics.flush();
+
+// En el router: analytics.track('screen', { path: analytics.screenName(pathname) })
+// En Ajustes:   analytics.setEnabled(on)
+```
+
 ## En cada app
+
+La analítica no necesita dependencias: todo se le pasa (el ejemplo usa
+`@capacitor/app` y `@capacitor/preferences` de la app).
 
 Dependencias del login: `@capacitor/core`, `@capacitor/app`, `@capgo/capacitor-social-login`
 (≥ 8.7.5) y `@supabase/supabase-js`. En `capacitor.config.ts`:
