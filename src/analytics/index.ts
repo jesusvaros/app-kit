@@ -46,7 +46,11 @@ export type AnalyticsStorage = {
 
 /** What a supabase-js client has that this needs. */
 export type AnalyticsRpcClient = {
-  rpc: (fn: string, args: { p_device: string; p_events: AnalyticsEvent[] }) => PromiseLike<{ error: unknown }>;
+  // Loose on purpose: a SupabaseClient typed with generated Database types
+  // has an rpc() whose parameters are narrowed to that schema's functions,
+  // which is not assignable to a (string, object) signature.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  rpc: (fn: any, args?: any) => PromiseLike<{ error: unknown }>;
 };
 
 /** A listener subscription: nothing, a function that removes it, or a Capacitor handle (or a promise of one). */
