@@ -1,8 +1,8 @@
 {
   "name": "@jesusvaros/app-kit",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
-  "description": "Login nativo de Google y Apple y notificaciones push para apps Capacitor + Supabase.",
+  "description": "Login nativo de Google y Apple, notificaciones push y analítica propia para apps Capacitor + Supabase.",
   "type": "module",
   "sideEffects": false,
   "files": [
@@ -26,6 +26,10 @@
     "./push/supabase": {
       "types": "./dist/push/supabase.d.ts",
       "import": "./dist/push/supabase.js"
+    },
+    "./analytics": {
+      "types": "./dist/analytics/index.d.ts",
+      "import": "./dist/analytics/index.js"
     }
   },
   "scripts": {
