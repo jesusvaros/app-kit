@@ -36,7 +36,15 @@ const fake = vi.hoisted(() => {
   };
   return { state, emit, PushNotifications };
 });
-vi.mock('@capacitor/push-notifications', () => ({ PushNotifications: fake.PushNotifications }));
+// Like the real Capacitor proxy: every unknown property, `then` included, throws.
+vi.mock('@capacitor/push-notifications', () => ({
+  PushNotifications: new Proxy(fake.PushNotifications, {
+    get(target, prop, receiver) {
+      if (prop === 'then') throw new Error('"PushNotifications.then()" is not implemented on android');
+      return Reflect.get(target, prop, receiver);
+    },
+  }),
+}));
 
 import { createAskPolicy, createPush, routeFromData, toPushMessage } from './index.js';
 import { createSupabasePushTokens } from './supabase.js';

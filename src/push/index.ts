@@ -116,11 +116,14 @@ export const createPush = (config: PushConfig = {}) => {
     return isSupported() && current !== 'web' && registerOn.includes(current);
   };
 
-  let loading: Promise<Plugin | null> | null = null;
+  // Capacitor plugins are proxies that answer every property, `then` included, and throw
+  // («"PushNotifications.then()" is not implemented»). A promise must never resolve to the
+  // plugin itself, or the runtime treats it as a thenable: keep it boxed.
+  let loading: Promise<{ push: Plugin } | null> | null = null;
   const plugin = () => {
     if (!isSupported()) return Promise.resolve(null);
     loading ??= import('@capacitor/push-notifications')
-      .then(module => module.PushNotifications)
+      .then(module => ({ push: module.PushNotifications }))
       .catch(error => {
         loading = null;
         console.warn('[app-kit] @capacitor/push-notifications is not installed', error);
@@ -131,7 +134,8 @@ export const createPush = (config: PushConfig = {}) => {
 
   let listening: Promise<PluginListenerHandle[]> | null = null;
   const listen = () => {
-    listening ??= plugin().then(async push => {
+    listening ??= plugin().then(async box => {
+      const push = box?.push;
       if (!push) return [];
       return Promise.all([
         push.addListener('registration', ({ value }) => {
@@ -170,7 +174,7 @@ export const createPush = (config: PushConfig = {}) => {
   };
 
   const getPermissionState = async (): Promise<PushPermission> => {
-    const push = await plugin();
+    const push = (await plugin())?.push;
     if (!push) return 'unavailable';
     try {
       return mapPermission((await push.checkPermissions()).receive);
@@ -185,7 +189,7 @@ export const createPush = (config: PushConfig = {}) => {
    * changed in the OS settings. Call it after the user said yes in the app.
    */
   const requestPermissionWhenUseful = async (): Promise<PushPermission> => {
-    const push = await plugin();
+    const push = (await plugin())?.push;
     if (!push) return 'unavailable';
     const current = await getPermissionState();
     if (current !== 'prompt') return current;
@@ -199,7 +203,7 @@ export const createPush = (config: PushConfig = {}) => {
   let channelsCreated = false;
   const createChannels = async () => {
     if (channelsCreated || platform() !== 'android' || !config.channels?.length) return;
-    const push = await plugin();
+    const push = (await plugin())?.push;
     if (!push) return;
     await Promise.all(config.channels.map(channel => push.createChannel(channel)));
     channelsCreated = true;
@@ -208,7 +212,7 @@ export const createPush = (config: PushConfig = {}) => {
   /** Asks the OS for a token (permission must be granted). Resolves with it. */
   const register = async (): Promise<string> => {
     if (!canRegister()) throw new PushError('UNAVAILABLE');
-    const push = await plugin();
+    const push = (await plugin())?.push;
     if (!push) throw new PushError('UNAVAILABLE');
     if ((await getPermissionState()) !== 'granted') throw new PushError('NOT_GRANTED');
     await listen();
@@ -238,7 +242,7 @@ export const createPush = (config: PushConfig = {}) => {
 
   /** Drops the token on the device (FCM deleteToken). The backend row is the app's job. */
   const unregister = async () => {
-    const push = await plugin();
+    const push = (await plugin())?.push;
     writeToken(null);
     if (push && canRegister()) await push.unregister().catch(() => undefined);
   };
